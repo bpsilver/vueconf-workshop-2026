@@ -64,8 +64,10 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: "Photo must be an image file (jpeg, png, gif, webp)" });
     }
 
-    const photoMatch = await checkForValidPhoto(photoPart.type, photoPart?.data, summary);
-    if (!photoMatch?.includes("**HIGH**")) throw createError({ statusCode: 400, statusMessage: photoMatch });
+    if (photoPart?.data) {
+        const photoMatch = await checkForValidPhoto(photoPart.type, photoPart?.data, summary);
+        if (!photoMatch?.includes("**HIGH**")) throw createError({ statusCode: 400, statusMessage: photoMatch });
+    }
 
     const report = await ProjectDailyReport.create({
         project_id: id,
