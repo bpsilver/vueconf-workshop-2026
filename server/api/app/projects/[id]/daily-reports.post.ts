@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { mime, z } from "zod";
 
 const fieldsSchema = z.object({
     report_date: z
@@ -12,6 +12,34 @@ const fieldsSchema = z.object({
 const paramsSchema = z.object({ id: z.coerce.number().int().positive() });
 
 const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+const checkForValidPhoto = async (
+    mimeType: string,
+    photoData: Buffer<ArrayBufferLike> | undefined,
+    summary: string,
+) => {
+    if (!photoData) return;
+
+    const base64String = Buffer.from(photoData).toString("base64");
+
+    const contents = [
+        {
+            inlineData: {
+                mimeType,
+                data: base64String,
+            },
+        },
+        {
+            text: `Check to see if the photo is described somewhere in this text: "${summary}". Return a confidence of HIGH, MED, or LOW where the HIGH is a *very* likely match.`,
+        },
+    ];
+
+    const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: contents,
+    });
+    return response.text;
+};
 
 export default defineEventHandler(async (event) => {
     const { id } = await getValidatedRouterParams(event, paramsSchema.parse);
@@ -35,6 +63,9 @@ export default defineEventHandler(async (event) => {
     if (photoPart?.data && photoPart.data.length > 0 && !allowedImageTypes.includes(photoPart.type ?? "")) {
         throw createError({ statusCode: 400, statusMessage: "Photo must be an image file (jpeg, png, gif, webp)" });
     }
+
+    const photoMatch = await checkForValidPhoto(photoPart.type, photoPart?.data, summary);
+    if (!photoMatch?.includes("**HIGH**")) throw createError({ statusCode: 400, statusMessage: photoMatch });
 
     const report = await ProjectDailyReport.create({
         project_id: id,
