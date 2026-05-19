@@ -27,6 +27,9 @@ export default defineNuxtConfig({
     modules: ["@nuxt/eslint", "@primevue/nuxt-module"],
     nitro: {
         storage,
+        experimental: {
+            tasks: true,
+        },
     },
     pages: {
         pattern: ["**/*.vue", "!**/partials/**"],
